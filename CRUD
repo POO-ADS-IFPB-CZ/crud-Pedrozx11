@@ -1,0 +1,165 @@
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class ProdutoApp extends JFrame {
+    private JTable table;
+    private DefaultTableModel model;
+    private List<Produto> produtos;
+    private GenericDao<Produto> dao;
+    public ProdutoApp() {
+        super("Cadastro de Produtos");
+        dao = new GenericDao<>("produtos.dat");
+        produtos = dao.carregar();
+        setLayout(new BorderLayout());
+        model = new DefaultTableModel(new String[]{"Código", "Descrição", "Preço"}, 0);
+        table = new JTable(model);
+        JScrollPane scrollPane = new JScrollPane(table);
+        atualizarTabela();
+        JButton btnAdicionar = new JButton("Adicionar");
+        JButton btnAtualizar = new JButton("Atualizar");
+        JButton btnRemover = new JButton("Remover");
+        btnAdicionar.addActionListener(e -> adicionarProduto());
+        btnAtualizar.addActionListener(e -> atualizarProduto());
+        btnRemover.addActionListener(e -> removerProduto());
+        JPanel botoes = new JPanel();
+        botoes.add(btnAdicionar);
+        botoes.add(btnAtualizar);
+        botoes.add(btnRemover);
+        add(scrollPane, BorderLayout.CENTER);
+        add(botoes, BorderLayout.SOUTH);
+        setSize(500, 300);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+    }
+    private void adicionarProduto() {
+        try {
+            int codigo = Integer.parseInt(JOptionPane.showInputDialog("Código:"));
+            String descricao = JOptionPane.showInputDialog("Descrição:");
+            double preco = Double.parseDouble(JOptionPane.showInputDialog("Preço:"));
+            Produto p = new Produto(codigo, descricao, preco);
+            if (!produtos.contains(p)) {
+                produtos.add(p);
+                dao.salvar(produtos);
+                atualizarTabela();
+            } else {
+                JOptionPane.showMessageDialog(this, "Produto com esse código já existe.");
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Dados inválidos!");
+        }
+    }
+    private void atualizarProduto() {
+        int row = table.getSelectedRow();
+        if (row >= 0) {
+            Produto p = produtos.get(row);
+            String descricao = JOptionPane.showInputDialog("Nova descrição:", p.getDescricao());
+            double preco = Double.parseDouble(JOptionPane.showInputDialog("Novo preço:", p.getPreco()));
+            p.setDescricao(descricao);
+            p.setPreco(preco);
+            dao.salvar(produtos);
+            atualizarTabela();
+        } else {
+            JOptionPane.showMessageDialog(this, "Selecione um produto para atualizar.");
+        }
+    }
+    private void removerProduto() {
+        int row = table.getSelectedRow();
+        if (row >= 0) {
+            produtos.remove(row);
+            dao.salvar(produtos);
+            atualizarTabela();
+        } else {
+            JOptionPane.showMessageDialog(this, "Selecione um produto para remover.");
+        }
+    }
+    private void atualizarTabela() {
+        model.setRowCount(0);
+        for (Produto p : produtos) {
+            model.addRow(new Object[]{p.getCodigo(), p.getDescricao(), p.getPreco()});
+        }
+    }
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new ProdutoApp().setVisible(true));
+    }
+} 
+
+
+import java.io.Serializable;
+import java.util.Objects;
+
+public class Produto implements Serializable {
+    private int codigo;
+    private String descricao;
+    private double preco;
+    public Produto(int codigo, String descricao, double preco) {
+        this.codigo = codigo;
+        this.descricao = descricao;
+        this.preco = preco;
+    }
+    public int getCodigo() {
+        return codigo;
+    }
+    public void setCodigo(int codigo) {
+        this.codigo = codigo;
+    }
+    public String getDescricao() {
+        return descricao;
+    }
+    public void setDescricao(String descricao) {
+        this.descricao = descricao;
+    }
+    public double getPreco() {
+        return preco;
+    }
+    public void setPreco(double preco) {
+        this.preco = preco;
+    }
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Produto)) return false;
+        Produto produto = (Produto) o;
+        return codigo == produto.codigo;
+    }
+    @Override
+    public int hashCode() {
+        return Objects.hash(codigo);
+    }
+    @Override
+    public String toString() {
+        return codigo + " - " + descricao;
+    }
+}
+
+
+import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class GenericDao<T> {
+    private final String filename;
+    public GenericDao(String filename) {
+        this.filename = filename;
+    }
+    public void salvar(List<T> lista) {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filename))) {
+            oos.writeObject(lista);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    public List<T> carregar() {
+        List<T> lista = new ArrayList<>();
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(filename))) {
+            lista = (List<T>) ois.readObject();
+        } catch (FileNotFoundException e) {
+            // arquivo ainda não existe
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+        return lista;
+    }
+}
